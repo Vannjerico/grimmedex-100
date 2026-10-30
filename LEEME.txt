@@ -1,0 +1,23 @@
+GRIMMEDEX 100 - PWA
+
+CONTENIDO
+- index.html: aplicación
+- manifest.webmanifest: datos de instalación e icono
+- sw.js: caché y funcionamiento sin conexión
+- icons/: iconos de la aplicación
+
+IMPORTANTE
+Para instalarla como aplicación PWA en Android, estos archivos deben estar publicados juntos en un sitio HTTPS.
+No basta con abrir index.html desde el almacenamiento del teléfono: los navegadores exigen HTTPS (o localhost)
+para instalar PWA y registrar el service worker.
+
+INSTALACIÓN EN ANDROID
+1. Publica la carpeta completa en un hosting HTTPS estático.
+2. Abre la dirección HTTPS con Chrome.
+3. Espera a que cargue una vez con internet.
+4. Abre el menú de Chrome y toca "Instalar aplicación" o "Añadir a pantalla de inicio".
+5. Después de la primera carga, el catálogo y la estructura principal estarán disponibles sin conexión.
+
+NOTA SOBRE RECURSOS EXTERNOS
+El diseño utiliza Tailwind CSS y Lucide desde CDN. El service worker intenta guardar esos recursos después de cargarlos
+con internet. La primera visita necesita conexión para descargarlos.

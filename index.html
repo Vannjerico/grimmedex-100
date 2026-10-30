@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grimmedex 100 - Bestiario Interactivo de Wesen</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            grimm: {
+              bg: '#05080e',
+              card: '#0a101b',
+              panel: '#0f172a',
+              border: '#1e3a5f',
+              silver: '#94a3b8',
+              accent: '#60a5fa',
+              red: '#ef4444',
+              gold: '#f59e0b'
+            }
+          },
+          fontFamily: {
+            serif: ['Georgia', 'Cinzel', 'serif'],
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Web App Manifest for PWA installation -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0a101b">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #05080e; }
+    ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+
+    .grimm-card-bg {
+      background: radial-gradient(circle at 50% 0%, rgba(30, 58, 95, 0.4) 0%, transparent 75%),
+                  radial-gradient(circle at 50% 100%, rgba(10, 18, 32, 0.95) 0%, transparent 100%),
+                  #0a101b;
+    }
+
+    .title-metallic {
+      background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 50%, #64748b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .danger-orb {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 1px solid #475569;
+      transition: all 0.2s ease;
+    }
+    .danger-orb.active {
+      background: #ef4444;
+      border-color: #f87171;
+      box-shadow: 0 0 6px #ef4444, inset 0 0 3px #ffffff;
+    }
+
+    .grimm-panel {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1e3a5f;
+      border-radius: 6px;
+    }
+
+    .modal-backdrop {
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(6px);
+    }
+  </style>
+</head>
+<body class="bg-grimm-bg text-slate-200 font-sans min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Header -->
+  <header class="bg-slate-950 border-b border-grimm-border sticky top-0 z-30 px-4 md:px-8 py-3 shadow-lg">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-950 border border-blue-500/40 flex items-center justify-center text-blue-400">
+          <i data-lucide="book-open" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-extrabold font-serif title-metallic leading-none">GRIMMEDEX 100</h1>
+          <p class="text-[10px] text-blue-400 font-mono uppercase tracking-widest mt-0.5">Bestiario Oficial Wesen (100 Especies)</p>
+        </div>
+      </div>
+
+      <!-- Actions & Install PWA -->
+      <div class="flex items-center gap-3 text-xs">
+        <button id="installAppBtn" onclick="installPWAApp()" class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white font-semibold transition shadow-md">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Instalar App</span>
+        </button>
+
+        <button id="soundToggleBtn" onclick="toggleAudio()" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-blue-500 text-slate-300 transition">
+          <i data-lucide="volume-2" class="w-4 h-4 text-blue-400" id="soundIcon"></i>
+          <span id="soundText" class="hidden sm:inline">Sonido Habilitado</span>
+        </button>
+
+        <span class="font-mono text-slate-400 text-xs">Registros: <strong id="totalBadge" class="text-blue-400">100</strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filtros -->
+  <section class="max-w-7xl w-full mx-auto p-4 md:p-6 pb-2">
+    <div class="grimm-panel p-4 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+      <div class="sm:col-span-6 relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input type="text" id="searchInput" oninput="filterCards()" placeholder="Buscar de los 100 Wesen por nombre, apodo o animal..." 
+               class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-8 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500">
+      </div>
+
+      <div class="sm:col-span-3">
+        <select id="typeFilter" onchange="filterCards()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-blue-500">
+          <option value="ALL">Cualquier Clasificación</option>
+          <option value="Bestia">Bestia</option>
+          <option value="Cánido / Lobuno">Cánido / Lobuno</option>
+          <option value="Felino">Felino</option>
+          <option value="Reptil / Anfibio">Reptil / Anfibio</option>
+          <option value="Aves">Aves</option>
+          <option value="Insecto / Arácnido">Insecto / Arácnido</option>
+          <option value="Roedor">Roedor</option>
+          <option value="Humanoide / Místico">Humanoide / Místico</option>
+          <option value="Mítico / Antiguo">Mítico / Antiguo</option>
+        </select>
+      </div>
+
+      <div class="sm:col-span-3">
+        <select id="dangerFilter" onchange="filterCards()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-blue-500">
+          <option value="ALL">Peligrosidad (Cualquiera)</option>
+          <option value="5">🔥 Peligrosidad 5 (Mortal)</option>
+          <option value="4">⚠️ Peligrosidad 4 (Alta)</option>
+          <option value="3">⚡ Peligrosidad 3 (Media)</option>
+          <option value="2">🛡️ Peligrosidad 2 (Baja)</option>
+          <option value="1">🌱 Peligrosidad 1 (Pacífico)</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rejilla de Wesen -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 pt-2">
+    <div id="cardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <!-- Generado dinámicamente -->
+    </div>
+  </main>
+
+  <!-- Modal Ficha de Grimm -->
+  <div id="cardModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-3 sm:p-6 overflow-y-auto" onclick="closeModalOnBackdrop(event)">
+    <div class="relative w-full max-w-2xl grimm-card-bg border-2 border-grimm-border rounded-xl p-4 sm:p-6 shadow-2xl text-slate-200 my-auto">
+      <button onclick="closeModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-900/80 p-1.5 rounded-full border border-slate-700">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <footer class="bg-slate-950 border-t border-grimm-border py-4 text-center text-xs text-slate-500 font-mono">
+    Grimmedex App V2.0 — Catálogo completo de los 100 Wesen más célebres
+  </footer>
+
+  <script>
+    // Audio Context sintético nativo
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playFlipSound() {
+      if (!soundEnabled) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(45, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {}
+    }
+
+    function toggleAudio() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundText').innerText = soundEnabled ? "Sonido Habilitado" : "Sonido Silenciado";
+      document.getElementById('soundIcon').classList.toggle('text-blue-400', soundEnabled);
+      document.getElementById('soundIcon').classList.toggle('text-slate-500', !soundEnabled);
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('installAppBtn').classList.remove('hidden');
+    });
+
+    function installPWAApp() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => {
+          deferredPrompt = null;
+          document.getElementById('installAppBtn').classList.add('hidden');
+        });
+      }
+    }
+
+    // Generador de Ilustraciones SVG Temáticas de Wesen en HD
+    function getWesenIllustration(id, type, name, color) {
+      const c = color || "#3b82f6";
+      let shape = '';
+
+      if (type.includes('Cánido') || name.includes('BLUTBAD') || name.includes('HUNDJÄGER')) {
+        shape = `<path d="M 60 140 L 80 70 L 100 35 L 120 70 L 140 140 L 115 120 L 100 160 L 85 120 Z" fill="#1e293b" stroke="${c}" stroke-width="3"/>
+                 <circle cx="85" cy="85" r="4" fill="#ef4444"/><circle cx="115" cy="85" r="4" fill="#ef4444"/>`;
+      } else if (type.includes('Felino') || name.includes('BALAM') || name.includes('LÖWEN')) {
+        shape = `<circle cx="100" cy="100" r="50" fill="#1e293b" stroke="${c}" stroke-width="3"/>
+                 <polygon points="50,60 30,100 70,100" fill="${c}"/>
+                 <polygon points="150,60 170,100 130,100" fill="${c}"/>
+                 <circle cx="80" cy="95" r="5" fill="#facc15"/><circle cx="120" cy="95" r="5" fill="#facc15"/>`;
+      } else if (type.includes('Reptil') || name.includes('SKALENGECK') || name.includes('KÖNIGSCHLANGE')) {
+        shape = `<ellipse cx="100" cy="100" rx="40" ry="60" fill="#064e3b" stroke="${c}" stroke-width="3"/>
+                 <path d="M 70 80 Q 100 40 130 80" fill="none" stroke="${c}" stroke-width="2"/>
+                 <circle cx="85" cy="85" r="4" fill="#facc15"/><circle cx="115" cy="85" r="4" fill="#facc15"/>`;
+      } else if (type.includes('Aves') || name.includes('GEIER') || name.includes('STEINADLER')) {
+        shape = `<polygon points="100,35 60,120 140,120" fill="#1e293b" stroke="${c}" stroke-width="3"/>
+                 <polygon points="100,120 85,160 115,120" fill="#f59e0b"/>
+                 <circle cx="80" cy="80" r="4" fill="#fff"/><circle cx="120" cy="80" r="4" fill="#fff"/>`;
+      } else if (type.includes('Insecto') || name.includes('SPINNETOD') || name.includes('MELLIFER')) {
+        shape = `<circle cx="100" cy="100" r="30" fill="#312e81" stroke="${c}" stroke-width="3"/>
+                 <line x1="70" y1="70" x2="30" y2="40" stroke="${c}" stroke-width="3"/>
+                 <line x1="130" y1="70" x2="170" y2="40" stroke="${c}" stroke-width="3"/>
+                 <line x1="70" y1="130" x2="30" y2="160" stroke="${c}" stroke-width="3"/>
+                 <line x1="130" y1="130" x2="170" y2="160" stroke="${c}" stroke-width="3"/>`;
+      } else if (type.includes('Roedor') || name.includes('EISBIBER') || name.includes('REINIGEN')) {
+        shape = `<circle cx="100" cy="105" r="40" fill="#451a03" stroke="${c}" stroke-width="3"/>
+                 <circle cx="70" cy="70" r="15" fill="#78350f"/><circle cx="130" cy="70" r="15" fill="#78350f"/>
+                 <rect x="94" y="115" width="5" height="10" fill="#fff"/><rect x="101" y="115" width="5" height="10" fill="#fff"/>`;
+      } else {
+        shape = `<polygon points="100,40 60,140 140,140" fill="#1e293b" stroke="${c}" stroke-width="3"/>
+                 <circle cx="85" cy="85" r="5" fill="${c}"/><circle cx="115" cy="85" r="5" fill="${c}"/>`;
+      }
+
+      return `<svg viewBox="0 0 200 200" class="w-full h-full">
+        <circle cx="100" cy="100" r="90" fill="#091322" stroke="${c}" stroke-width="3" opacity="0.8"/>
+        ${shape}
+      </svg>`;
+    }
+
+    // Nombres y plantillas para los 100 Wesen
+    const wesenNames = [
+      ["001","BLUTBAD","Hombre Lobo Feroz","Cánido / Lobuno",5,"#ef4444","Lobo depredador con fuerza colosal, olfato agudo y propensión al combate nocturno."],
+      ["002","HEXENBIEST","Bruja Mística Cadavérica","Humanoide / Místico",5,"#a855f7","Wesen femenino místico de aspecto cadavérico al transformarse, capaz de telequinesis y elaboración de toxinas."],
+      ["003","FUCHSBAU","Zorro Astuto Herbolario","Humanoide / Místico",2,"#f97316","Seres con aspecto de zorro. Destacan por su ingenio, cautela y vasto dominio de plantas medicinales."],
+      ["004","EISBIBER","Castor Pacífico Artesano","Roedor",1,"#0d9488","Wesen pacíficos y temerosos con fisonomía de castor, muy hábiles en la albañilería y carpintería."],
+      ["005","SPINNETOD","Araña Viuda Negra","Insecto / Arácnido",4,"#e11d48","Criaturas arácnidas que licúan las entrañas de sus presas para ralentizar su envejecimiento."],
+      ["006","REINIGEN","Rata de Alcantarilla","Roedor",2,"#64748b","Habitantes del alcantarillado con dominio para guiar plagas de roedores mediante melodías."],
+      ["007","JÄGERBAR","Oso Cazador Ritual","Bestia",3,"#854d0e","Wesen oso que practica rituales ancestrales de caza utilizando garras metálicas tradicionales."],
+      ["008","ZIEGEVOLK","Macho Cabrío Seductor","Humanoide / Místico",2,"#10b981","Seres con apariencia de cabra que emiten feromonas hipnóticas para encantar y manipular."],
+      ["009","MELLIFER","Abeja Reina de la Colmena","Insecto / Arácnido",3,"#eab308","Viven en colmenas organizadas y atacan inyectando neurotoxinas letales en sus enemigos."],
+      ["010","HUNDJÄGER","Perro Dóberman Asesino","Cánido / Lobuno",4,"#ef4444","Mercenarios caninos despiadados al servicio de la Verrat, especializados en rastreo e imposición."],
+      ["011","KLAUSTREICH","Gato Montés Traicionero","Felino",3,"#38bdf8","Felino silvestre posesivo y manipulador con potentes garras retráctiles."],
+      ["012","SKALENGECK","Lagarto Pandillero","Reptil / Anfibio",2,"#22c55e","Reptiles escamados que suelen asociarse en bandas urbanas territoriales."],
+      ["013","LÖWEN","León Gladiador","Felino",4,"#f59e0b","Lions gladiadores feroces que dirigen arenas de combate clandestinas para Wesen."],
+      ["014","STEINADLER","Águila Militar Imperial","Aves",3,"#cbd5e1","Wesen aviar de agudísima vista e intelecto táctico militar superior."],
+      ["015","MAUZHERTZ","Ratón Asustadizo","Roedor",1,"#94a3b8","Creaturas diminutas y pacíficas que rehúyen del combate a toda costa."],
+      ["016","MURCIÉLAGO","Murciélago Sónico Gigante","Bestia",4,"#818cf8","Emiten chillidos ultrasónicos letales capaces de hacer estallar vasos sanguíneos."],
+      ["017","BAUERSCHWEIN","Jabalí Enemigo del Lobuno","Humanoide / Místico",2,"#f43f5e","Rival histórico del Blutbad. Se protegen mediante trampas mecánicas elaboradas."],
+      ["018","LEBENSSAUGER","Sanguijuela Parásita","Reptil / Anfibio",3,"#06b6d4","Poseen bocas circulares con hileras de dientes para succionar la sangre de sus presas."],
+      ["019","SIEGBARSTE","Ogre Gigante de Hueso Denso","Mítico / Antiguo",5,"#dc2626","Gigante casi inmune a las balas ordinarias por su extraordinaria densidad ósea."],
+      ["020","ANUBIS","Chacal Egipcio Sagrado","Mítico / Antiguo",4,"#d97706","Protectores ancestrales de artefactos sagrados y tumbas en el antiguo Egipto."],
+      ["021","ASWANG","Vampiro de Lengua Larga","Humanoide / Místico",5,"#9f1239","Criatura del folclore filipino con larga lengua probóscide que ataca de noche."],
+      ["022","BALAM","Jaguar de Manto Nocturno","Felino",3,"#6366f1","Jaguar sigiloso cuyo pelaje cambia de tonalidad entre el día y la noche."],
+      ["023","CRACHER-MORTEL","Pez Globo Zombi","Reptil / Anfibio",4,"#0284c7","Escupe una saliva neurotóxica que induce un estado de trance zombi en sus víctimas."],
+      ["024","DÄMONFEUER","Dragón Escupidor de Fuego","Mítico / Antiguo",5,"#b91c1c","Wesen reptil gigantesco capaz de vaporizar y escupir fluido inflamable concentrado."],
+      ["025","DICKFELLIG","Rinoceronte Pesado","Bestia",3,"#475569","Poseen una piel sumamente gruesa que amortigua golpes y proyectiles ligeros."],
+      ["026","DRANG-ZORN","Tejón Irritable","Bestia",3,"#fbbf24","Tejones sumamente agresivos que entran en estado de furia al sentirse acorralados."],
+      ["027","EL CUCUY","El Coco Vigilante","Mítico / Antiguo",5,"#881337","Ente místico de sombras que ataca y descuartiza a criminales y malhechores."],
+      ["028","EXCANDESCO","Demonio Ígneo Volcánico","Mítico / Antiguo",5,"#f97316","Sustancia corporal que se combustiona espontáneamente alcanzando temperaturas de lava."],
+      ["029","FUCHSTEUFELWILD","Duende de Dedos Cortantes","Humanoide / Místico",4,"#a3e635","Duendes con uñas de ácido concentrado que cortan la materia sólida."],
+      ["030","GEDÄCHTNIS ESSER","Pulpo Roba-Memorias","Insecto / Arácnido",4,"#0e7490","Inyecta sus tentáculos en la cabeza de las víctimas para extirpar sus recuerdos."],
+      ["031","GEIER","Buitre Cosechador de Órganos","Aves",3,"#78350f","Buitres que emboscan a viajeros en bosques para vender sus órganos en la medicina negra."],
+      ["032","GELUMCAEDUS","Caimán Helado de las Cloacas","Reptil / Anfibio",4,"#15803d","Caimán prehistórico adapto al frío extremo que descuartiza a sus presas."],
+      ["033","GENIO INNOCUO","Tortuga Pacífica Sabia","Reptil / Anfibio",1,"#14b8a6","Tortugas longevas y sabias que prefieren la meditación y evitan todo tipo de violencia."],
+      ["034","GLÜHENVOLK","Ente Luminoso Extraterrestre","Humanoide / Místico",2,"#38bdf8","Seres que emiten una luz bioluminiscente hipnótica y brillante en la piel."],
+      ["035","HÄSSLICH","Troll de los Puentes","Humanoide / Místico",3,"#475569","Trolls corpulentos que extorsionan y controlan infraestructuras y pasos elevados."],
+      ["036","INUGAMI","Perro Fantasma Samurái","Cánido / Lobuno",4,"#4338ca","Espíritus caninos guardianes vinculados al honor y la venganza familiar en Japón."],
+      ["037","JINNAMURU XUNTE","Mosca Devoradora de Ojos","Insecto / Arácnido",4,"#854d0e","Parásito volador que consume la visión de sus víctimas mediante larvas nocivas."],
+      ["038","KÖNIGSCHLANGE","Rey Cobra Asesino","Reptil / Anfibio",4,"#15803d","Cobras gigantes que inyectan un veneno que paraliza los signos vitales en segundos."],
+      ["039","LAUSENSCHLANGE","Serpiente Seductora","Reptil / Anfibio",3,"#16a34a","Serpiente constrictora que tritura a sus víctimas con una fuerza aplastante."],
+      ["040","LUISANT-PÊCHEUR","Nutria Nadadora","Roedor",1,"#38bdf8","Seres adaptados al agua con habilidades excepcionales de natación e inmersión."],
+      ["041","LUISON","Lobo Blanco Engañoso","Cánido / Lobuno",3,"#e2e8f0","Lobos albinos expertos en montajes psicológicos y manipulación de herencias."],
+      ["042","MUSAI","Musa Artística Seductora","Humanoide / Místico",3,"#ec4899","Inspira un genio artístico desmedido en sus víctimas pero las lleva a la locura."],
+      ["043","NAIAD","Nínfides Acuáticas","Humanoide / Místico",2,"#06b6d4","Criaturas marinas que necesitan retornar al agua constantemente para sobrevivir."],
+      ["044","NUCKELAVEE","Caballero Piel Desollada","Mítico / Antiguo",4,"#991b1b","Equinos de piel roja desollada e imponente presencia de combate."],
+      ["045","PHANSIGAR","Serpiente Estranguladora","Reptil / Anfibio",3,"#047857","Serpientes que sacrifican presas sofocándolas con sus lenguas elásticas."],
+      ["046","RAUB-KONDOR","Cóndor Depredador Aéreo","Aves",4,"#b45309","Cóndores de visión panorámica que cazan desde lo alto de los rascacielos."],
+      ["047","SCHAKAL","Chacal Carroñero","Cánido / Lobuno",3,"#d97706","Chacales sin escrúpulos conocidos por robar infantes y objetos de valor."],
+      ["048","SCHTANGEBÄR","Puercoespín de Púas Venenosas","Bestia",3,"#65a30d","Eyectan púas afiladas de su piel cargadas con toxinas paralizantes."],
+      ["049","SEITENENVOEL","Pájaro Dorado de la Pluma","Aves",2,"#facc15","Especie rara cuya garganta produce una gema preciosa altamente codiciada."],
+      ["050","TAUREUS-ARMENTA","Minotauro Colosal","Mítico / Antiguo",4,"#78350f","Toros guerreros de blindaje natural que lideran la vanguardia en batallas."],
+      ["051","VULPESMYRDER","Zorro Asesino Sigiloso","Cánido / Lobuno",3,"#ea580c","Asesinos vulpinos que se infiltran silenciosamente en residencias."],
+      ["052","WENDIGO","Caníbal de las Montañas","Mítico / Antiguo",5,"#b91c1c","Criaturas caníbales con garras de hueso que almacenan restos humanos en cuevas."],
+      ["053","WILDERMANN","Pie Grande Forestal","Bestia",2,"#a16207","Habitantes pacíficos de los bosques con denso pelaje café similar a Pie Grande."],
+      ["054","YAGUAROTÉ","Jaguar Guerrero","Felino",4,"#4338ca","Guerreros felinos de la selva sudamericana feroces e implacables."],
+      ["055","ZAUBERBIEST","Brujo Místico Masculino","Humanoide / Místico",5,"#7e22ce","Contraparte masculina de la Hexenbiest, con idéntica pericia en magia negra."],
+      ["056","ALPE","Devorador de Sueños","Humanoide / Místico",4,"#475569","Causa insomnio y pesadillas consumiendo la energía mental de sus víctimas."],
+      ["057","APGADNIEKS","Perro Husky Líder","Cánido / Lobuno",2,"#0284c7","Caninos leales y protectores que cuidan de niños y comunidades aisladas."],
+      ["058","BARBATUS OSSIFRAGE","Buitre Quebrantahuesos","Aves",3,"#78350f","Extrae todos los huesos del cuerpo de sus víctimas dejándolos flexibles."],
+      ["059","BUSSARD","Acuipítrido Halcón","Aves",3,"#ca8a04","Halcones de rapiña enemigos mortales de los Wesen tipo rata y ratón."],
+      ["060","COYOTL","Coyote de la Camada","Cánido / Lobuno",3,"#d97706","Coyotes organizados en clanes opresivos con severos rituales de iniciación."],
+      ["061","CUPIDITAS","Demonio de la Pasión","Humanoide / Místico",4,"#db2777","Acrecienta obsesiones amorosas enfermas mediante toxinas cutáneas."],
+      ["062","EL CUEGLE","Monstruo de Tres Ojos","Mítico / Antiguo",4,"#4d7c0f","Posee tres ojos y dos estómagos; devora niños para acallar visiones del futuro."],
+      ["063","FEUERGEIST","Salamandra de Fuego","Reptil / Anfibio",3,"#dc2626","Salamandras capaces de sobrecalentar su cuerpo al contacto con la piel."],
+      ["064","GELUMCAEDUS","Caimán Subterráneo","Reptil / Anfibio",4,"#047857","Caimanes ciegos que detectan las vibraciones de sus víctimas en las cloacas."],
+      ["065","GRAUHUND","Perro Gris Rastreador","Cánido / Lobuno",2,"#64748b","Caninos de pelaje cenizo orientados a tareas de patrulla y escolta."],
+      ["066","HEFTIGAUROCH","Toro Salvaje de Duelo","Bestia",4,"#854d0e","Toros corpulentos que solo encuentran calma tras combates a muerte."],
+      ["067","HIPPOS ATHANATOS","Caballo Marino Inmortal","Mítico / Antiguo",3,"#0284c7","Criatura anfibia con aspecto de caballo acuático temido por los marineros."],
+      ["068","HUNTHA LAMI MUUAJI","Gusano Asesino de la Piel","Insecto / Arácnido",4,"#15803d","Gusanos parásitos que se ocultan debajo del tejido epitelial humano."],
+      ["069","INUGAMI","Guardián del Honor","Cánido / Lobuno",4,"#312e81","Protege a familias nobles japonesas ejecutando a sus detractores."],
+      ["070","KLEINE BEISSER","Pulga Saltarina","Insecto / Arácnido",1,"#ca8a04","Wesen diminutos capaces de saltar 20 veces su altura para escapar."],
+      ["071","KRAMPUS","Demonio de la Navidad","Mítico / Antiguo",5,"#991b1b","Ente cornudo que azota y secuestra a niños traviesos antes de la medianoche."],
+      ["072","LEOPARDO","Pantera Cazadora","Felino",4,"#1e1b4b","Felinos de gran porte y camuflaje nocturno perfecto en la vegetación."],
+      ["073","LISAUNT-PÊCHEUR","Nutria Amable","Roedor",1,"#0ea5e9","Nutrias acuáticas amistosas con los Grimm y dedicadas a la pesca."],
+      ["074","MATACAN","Perro de Caza Antiguo","Cánido / Lobuno",3,"#475569","Perros de guerra utilizados en la Europa medieval para erradicar disidentes."],
+      ["075","MAMBA","Serpiente Negra Venenosa","Reptil / Anfibio",5,"#0f172a","Cobras de mordedura fulminante que provoca parálisis cardíaca instantánea."],
+      ["076","MUSASAT ALSH-SHABAB","Murciélago Chupa-Juventud","Bestia",4,"#a855f7","Drena los fluidos corporales de las personas para mantener su piel joven."],
+      ["077","NIGHTMARE","Pesadilla Encarnada","Mítico / Antiguo",4,"#311b92","Proyecta alucinaciones nocturnas mortales en las mentes de sus presas."],
+      ["078","OIKOS","Rinoceronte Blindado","Bestia",3,"#334155","Goliath de cuero impenetrable que sirve de guardaespaldas para la Realeza."],
+      ["079","PENANGGALAN","Cabeza Voladora con Entrañas","Mítico / Antiguo",5,"#9f1239","Monstruo que desprende su cabeza y vísceras voladoras para alimentarse."],
+      ["080","QUATROCORNE","Carnero de Cuatro Cuernos","Bestia",2,"#854d0e","Carneros con cuatro cuernos retorcidos que embisten barreras de madera."],
+      ["081","RAUB-KATZE","Pantera de Caza","Felino",3,"#1e293b","Panteras ágiles contratadas para robos de guante blanco y espionaje."],
+      ["082","RISEN-RATTE","Rata Gigante de Laboratorio","Roedor",3,"#475569","Roedores mutagenizados de dos metros de altura que habitan túneles."],
+      ["083","SCHINDEHUND","Sabueso de Cobro","Cánido / Lobuno",2,"#64748b","Sabuesos de cara demacrada que trabajan como cobradores de deudas."],
+      ["084","SCHMERZEN-KANINCHEN","Conejo del Dolor","Roedor",1,"#94a3b8","Conejos timoratos que emiten chillidos que ensordecen temporalmente."],
+      ["085","SIEGBAHN","Oso Hormiguero Subterráneo","Bestia",2,"#78350f","Desentierran galerías subterráneas con sus garras frontales endurecidas."],
+      ["086","STORMFORSTER","Comadreja Escurridiza","Roedor",2,"#d97706","Comadrejas veloces que abren cerraduras y huyen por conductos estrechos."],
+      ["087","TAUBE","Paloma Mensajera","Aves",1,"#cbd5e1","Aves pacíficas que transmiten recados entre los clanes Wesen neutrales."],
+      ["088","TOTENSTATT","Buitre Sepulturero","Aves",3,"#451a03","Se alimentan de los cadáveres frescos en fosas comunes o accidentes."],
+      ["089","UBERNACHTENFALTER","Polilla de la Luna","Insecto / Arácnido",2,"#38bdf8","Emiten un polvo en las alas que causa somnolencia inmediata."],
+      ["090","URWALTIG","Tigre de Bengala","Felino",4,"#ea580c","Tigres de fuerza colosal e implacable habilidad de emboscada."],
+      ["091","VERDREHTBIEST","Quimera Tres Cabezas","Mítico / Antiguo",5,"#7f1d1d","Bestia mítica de tres rostros con diferentes ataques elementales."],
+      ["092","WASSERMAN","Espíritu del Río","Humanoide / Místico",3,"#0284c7","Arrastran a los nadadores confiados al fondo de lagos y ríos."],
+      ["093","WILDERZÄHNE","Demonio de Tasmania","Bestia",3,"#78350f","Muerden con mandíbulas capaces de triturar tubos de acero."],
+      ["094","WISSEN KLUG","Orangután Intelectual","Humanoide / Místico",2,"#c2410c","Simios de gran intelecto que custodian bibliotecas y tomos Grimm."],
+      ["095","WUTENDORN","Puercoespín Furioso","Bestia",3,"#65a30d","Disparan púas punzantes a más de diez metros de distancia."],
+      ["096","YAGUAR","Jaguar de la Selva","Felino",4,"#15803d","Cazadores sigilosos de las junglas tropicales de Centroamérica."],
+      ["097","ZAPPELNMAUS","Ratón Saltarín","Roedor",1,"#a16207","Ratones nerviosos de movimiento ultra-rápido."],
+      ["098","ZERSTÖRER","El Destructor del Inframundo","Mítico / Antiguo",5,"#000000","Entidad suprema con cetro de poder capaz de exterminar mundos enteros."],
+      ["099","ZIERLICH","Mariposa de Cristal","Insecto / Arácnido",1,"#f472b6","Mariposas pacíficas cuyos reflejos deslumbran visualmente."],
+      ["100","ZULAUFER","Lobo Solitario","Cánido / Lobuno",3,"#334155","Lobos errantes que no pertenecen a ninguna manada y vaga por el mundo."]
+    ];
+
+    // Construcción de la BD de 100 Wesen
+    const wesen100Database = wesenNames.map(item => ({
+      id: item[0],
+      name: item[1],
+      subtitle: item[2],
+      type: item[3],
+      danger: item[4],
+      color: item[5],
+      description: item[6],
+      seasons: "Temporadas: 1 – 6",
+      powers: [
+        { title: "Atributos de Especie", desc: "Potenciación física y sensorial según su linaje animal." },
+        { title: "Transformación Woge", desc: "Revelación de su verdadera naturaleza ante un Grimm." }
+      ],
+      weaknesses: [
+        { title: "Combate Táctico Grimm", desc: "Sensibles a las armas especializadas del vagón de Nick." },
+        { title: "Toxinas Específicas", desc: "Vulnerables a extractos botánicos de la Tienda de Especias." }
+      ],
+      seriesNotes: "Aparece registrado en los diarios de campo de la Familia Grimm.",
+      humanName: "Forma Humana Adaptada",
+      humanColor: item[5],
+      grimmNotes: "Consignado en las crónicas de la casa de los Grimm en Portland.",
+      quote: `«La verdadera esencia de un ${item[1]} no se oculta del ojo del Grimm.»`
+    }));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('totalBadge').innerText = wesen100Database.length;
+      renderCards(wesen100Database);
+      lucide.createIcons();
+    });
+
+    function renderCards(data) {
+      const grid = document.getElementById('cardsGrid');
+      grid.innerHTML = '';
+
+      if (data.length === 0) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 font-mono text-xs">No se encontraron los Wesen solicitados.</div>`;
+        return;
+      }
+
+      data.forEach(wesen => {
+        let orbsHTML = '';
+        for (let i = 1; i <= 5; i++) {
+          orbsHTML += `<div class="danger-orb ${i <= wesen.danger ? 'active' : ''}"></div>`;
+        }
+
+        const card = document.createElement('div');
+        card.className = "grimm-card-bg border border-grimm-border hover:border-blue-500 rounded-xl p-3 shadow-lg cursor-pointer transition-all hover:-translate-y-1 flex flex-col justify-between";
+        card.onclick = () => openModal(wesen.id);
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between border-b border-grimm-border pb-1.5 mb-2">
+              <span class="bg-blue-950 border border-blue-800 text-blue-300 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded">
+                N.º ${wesen.id}
+              </span>
+              <span class="font-serif font-bold text-slate-400 text-[10px] tracking-widest">GRIMM</span>
+            </div>
+
+            <div class="text-center mb-1.5">
+              <h3 class="text-base font-extrabold font-serif title-metallic uppercase leading-tight">${wesen.name}</h3>
+              <div class="text-[10px] text-slate-400 italic">${wesen.subtitle}</div>
+            </div>
+
+            <!-- Ilustración SVG HD -->
+            <div class="w-full h-32 bg-slate-950 border border-blue-900/60 rounded flex items-center justify-center p-2 mb-2 shadow-inner">
+              ${getWesenIllustration(wesen.id, wesen.type, wesen.name, wesen.color)}
+            </div>
+
+            <div class="flex items-center justify-between text-[10px] mb-2 bg-slate-900/80 p-1.5 rounded">
+              <span class="text-slate-400 font-mono text-[9px]">Tipo: <strong class="text-white">${wesen.type}</strong></span>
+              <div class="flex items-center gap-1">
+                ${orbsHTML}
+              </div>
+            </div>
+
+            <p class="text-[10px] text-slate-300 line-clamp-2 leading-relaxed mb-2">
+              ${wesen.description}
+            </p>
+          </div>
+
+          <div class="border-t border-slate-800 pt-1.5 flex items-center justify-between text-[9px] font-mono text-blue-400">
+            <span>VER FICHA COMPLETA</span>
+            <i data-lucide="chevron-right" class="w-3 h-3"></i>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function openModal(id) {
+      playFlipSound();
+      const w = wesen100Database.find(item => item.id === id);
+      if (!w) return;
+
+      let orbsHTML = '';
+      for (let i = 1; i <= 5; i++) {
+        orbsHTML += `<div class="danger-orb ${i <= w.danger ? 'active' : ''}"></div>`;
+      }
+
+      const modalContent = document.getElementById('modalContent');
+      modalContent.innerHTML = `
+        <div class="flex items-center justify-between border-b-2 border-grimm-border pb-2 mb-3">
+          <div class="bg-blue-950 border border-blue-400/50 rounded px-2 py-0.5 text-xs font-mono font-bold text-blue-300">
+            WESEN N.º ${w.id}
+          </div>
+          <div class="text-center">
+            <h2 class="text-2xl font-extrabold font-serif title-metallic uppercase leading-none">${w.name}</h2>
+            <div class="text-xs text-slate-400 italic">${w.subtitle}</div>
+          </div>
+          <div class="font-serif font-bold text-lg text-slate-300 tracking-widest">GRIMM</div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3">
+          <div class="sm:col-span-7 bg-slate-950 border border-blue-900/60 rounded-lg h-48 flex items-center justify-center p-2">
+            ${getWesenIllustration(w.id, w.type, w.name, w.color)}
+          </div>
+
+          <div class="sm:col-span-5 flex flex-col gap-2">
+            <div class="grimm-panel p-2">
+              <span class="block text-[9px] font-mono uppercase text-blue-400 font-bold">CLASIFICACIÓN</span>
+              <span class="text-xs font-bold text-white">${w.type}</span>
+            </div>
+            <div class="grimm-panel p-2">
+              <span class="block text-[9px] font-mono uppercase text-blue-400 font-bold mb-1">PELIGROSIDAD</span>
+              <div class="flex items-center gap-1">${orbsHTML}</div>
+            </div>
+            <div class="grimm-panel p-2 flex-1">
+              <span class="block text-[9px] font-mono uppercase text-blue-400 font-bold mb-1">DESCRIPCIÓN</span>
+              <p class="text-[10px] leading-relaxed text-slate-300">${w.description}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          <div class="grimm-panel p-2.5">
+            <div class="text-[10px] font-bold text-blue-300 uppercase font-mono mb-1">PODERES</div>
+            ${w.powers.map(p => `<div class="text-[10px]">• <strong>${p.title}:</strong> ${p.desc}</div>`).join('')}
+          </div>
+          <div class="grimm-panel p-2.5">
+            <div class="text-[10px] font-bold text-red-300 uppercase font-mono mb-1">DEBILIDADES</div>
+            ${w.weaknesses.map(wk => `<div class="text-[10px]">• <strong>${wk.title}:</strong> ${wk.desc}</div>`).join('')}
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800 pt-2 flex items-center justify-between text-[10px] italic text-slate-400">
+          <span>${w.quote}</span>
+          <span class="font-sans not-italic text-blue-400 font-bold font-mono">🐾 GRIMM</span>
+        </div>
+      `;
+
+      document.getElementById('cardModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('cardModal').classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+
+    function closeModalOnBackdrop(e) {
+      if (e.target.id === 'cardModal') closeModal();
+    }
+
+    function filterCards() {
+      const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+      const typeVal = document.getElementById('typeFilter').value;
+      const dangerVal = document.getElementById('dangerFilter').value;
+
+      const filtered = wesen100Database.filter(w => {
+        const matchesSearch = w.name.toLowerCase().includes(searchVal) || w.subtitle.toLowerCase().includes(searchVal);
+        const matchesType = (typeVal === 'ALL') || (w.type === typeVal);
+        const matchesDanger = (dangerVal === 'ALL') || (w.danger.toString() === dangerVal);
+
+        return matchesSearch && matchesType && matchesDanger;
+      });
+
+      renderCards(filtered);
+    }
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch((err) => {
+          console.warn("No se pudo registrar el modo sin conexión:", err);
+        });
+      });
+    }
+  </script>
+
+</body>
+</html>
