@@ -1,21 +1,22 @@
-const CACHE_NAME = "grimmedex-v1";
 
-const ARCHIVOS = [
+const CACHE_NAME = "grimmedex-v2";
+
+const ARCHIVOS_INICIALES = [
   "./",
   "./index.html",
-  "./manifest.webmanifest"
+  "./manifest.webmanifest",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
 ];
 
-// Instalar y guardar los archivos principales
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ARCHIVOS))
+      .then(cache => cache.addAll(ARCHIVOS_INICIALES))
       .then(() => self.skipWaiting())
   );
 });
 
-// Activar la nueva versión
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -28,25 +29,33 @@ self.addEventListener("activate", event => {
   );
 });
 
-// Servir archivos guardados cuando no haya internet
 self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
+  const request = event.request;
 
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response && response.ok) {
-          const copia = response.clone();
-          caches.open(CACHE_NAME).then(cache =>
-            cache.put(event.request, copia)
-          );
-        }
-        return response;
-      })
-      .catch(() =>
-        caches.match(event.request).then(response =>
-          response || caches.match("./index.html")
-        )
-      )
-  );
+  if (request.method !== "GET") return;
+
+  event.respondWith((async () => {
+    try {
+      const response = await fetch(request);
+
+      if (response && (response.ok || response.type === "opaque")) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME)
+          .then(cache => cache.put(request, copy))
+          .catch(() => {});
+      }
+
+      return response;
+    } catch (error) {
+      const cached = await caches.match(request);
+
+      if (cached) return cached;
+
+      if (request.mode === "navigate") {
+        return (await caches.match("./index.html")) || Response.error();
+      }
+
+      return Response.error();
+    }
+  })());
 });
